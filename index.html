@@ -191,6 +191,17 @@
     color:var(--muted);
     font-size:0.85rem;
   }
+  .reset-btn{
+    border:1px solid var(--line);
+    background:var(--card);
+    color:var(--muted);
+    font-family:inherit;
+    font-size:0.85rem;
+    padding:8px 14px;
+    border-radius:8px;
+    cursor:pointer;
+  }
+  .reset-btn:hover{color:var(--clay);border-color:var(--clay);}
 
   @media (max-width:420px){
     .add-row{flex-wrap:wrap;}
@@ -202,7 +213,7 @@
 <div class="wrap">
   <header>
     <h1>Bagagli da preparare</h1>
-    <p class="subtitle">Spunta man mano che metti in valigia. Puoi aggiungere o togliere oggetti liberamente.</p>
+    <p class="subtitle">Spunta man mano che metti in valigia. Le modifiche si salvano automaticamente su questo dispositivo.</p>
   </header>
 
   <div class="progress-block">
@@ -226,41 +237,70 @@
 
   <div id="categories"></div>
 
-  <footer>Questa lista vive solo in questa pagina: non viene salvata se la ricarichi.</footer>
+  <footer>
+    <button id="resetBtn" class="reset-btn">Ripristina lista di partenza</button>
+  </footer>
 </div>
 
 <script>
-  // Stato iniziale: categorie con oggetti di partenza
-  let data = [
-    { name: "Documenti", items: [
-      { text: "Carta d'identità / passaporto", checked: false },
-      { text: "Biglietti / prenotazioni", checked: false },
-      { text: "Assicurazione di viaggio", checked: false },
-    ]},
-    { name: "Abbigliamento", items: [
-      { text: "Magliette", checked: false },
-      { text: "Pantaloni", checked: false },
-      { text: "Biancheria intima", checked: false },
-      { text: "Calzini", checked: false },
-      { text: "Pigiama", checked: false },
-      { text: "Giacca / felpa", checked: false },
-    ]},
-    { name: "Toiletries", items: [
-      { text: "Spazzolino e dentifricio", checked: false },
-      { text: "Shampoo / bagnoschiuma", checked: false },
-      { text: "Rasoio", checked: false },
-      { text: "Farmaci personali", checked: false },
-    ]},
-    { name: "Elettronica", items: [
-      { text: "Caricabatterie telefono", checked: false },
-      { text: "Powerbank", checked: false },
-      { text: "Adattatore di corrente", checked: false },
-    ]},
-    { name: "Varie", items: [
-      { text: "Occhiali da sole", checked: false },
-      { text: "Borraccia", checked: false },
-    ]},
-  ];
+  const STORAGE_KEY = 'bagagli-checklist-v1';
+
+  function defaultData() {
+    return [
+      { name: "Documenti", items: [
+        { text: "Carta d'identità / passaporto", checked: false },
+        { text: "Biglietti / prenotazioni", checked: false },
+        { text: "Assicurazione di viaggio", checked: false },
+      ]},
+      { name: "Abbigliamento", items: [
+        { text: "Magliette", checked: false },
+        { text: "Pantaloni", checked: false },
+        { text: "Biancheria intima", checked: false },
+        { text: "Calzini", checked: false },
+        { text: "Pigiama", checked: false },
+        { text: "Giacca / felpa", checked: false },
+      ]},
+      { name: "Toiletries", items: [
+        { text: "Spazzolino e dentifricio", checked: false },
+        { text: "Shampoo / bagnoschiuma", checked: false },
+        { text: "Rasoio", checked: false },
+        { text: "Farmaci personali", checked: false },
+      ]},
+      { name: "Elettronica", items: [
+        { text: "Caricabatterie telefono", checked: false },
+        { text: "Powerbank", checked: false },
+        { text: "Adattatore di corrente", checked: false },
+      ]},
+      { name: "Varie", items: [
+        { text: "Occhiali da sole", checked: false },
+        { text: "Borraccia", checked: false },
+      ]},
+    ];
+  }
+
+  let data = defaultData();
+
+  function loadData() {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) data = parsed;
+      }
+    } catch (e) {
+      console.warn('Impossibile leggere i dati salvati:', e);
+    }
+  }
+
+  function saveData() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    } catch (e) {
+      console.warn('Impossibile salvare i dati:', e);
+    }
+  }
+
+  loadData();
 
   const categoriesEl = document.getElementById('categories');
   const catSelect = document.getElementById('catSelect');
@@ -318,6 +358,7 @@
           if (!ok) return;
         }
         data.splice(ci, 1);
+        saveData();
         render();
       });
       catDiv.appendChild(header);
@@ -343,10 +384,12 @@
           `;
           li.querySelector('input').addEventListener('change', () => {
             item.checked = !item.checked;
+            saveData();
             render();
           });
           li.querySelector('.remove').addEventListener('click', () => {
             cat.items.splice(ii, 1);
+            saveData();
             render();
           });
           ul.appendChild(li);
@@ -368,6 +411,7 @@
     const ci = parseInt(catSelect.value, 10);
     data[ci].items.push({ text, checked: false });
     newItemInput.value = '';
+    saveData();
     render();
     newItemInput.focus();
   });
@@ -381,12 +425,22 @@
     if (!name) return;
     data.push({ name, items: [] });
     newCatInput.value = '';
+    saveData();
     render();
     newCatInput.focus();
   });
 
   newCatInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') addCatBtn.click();
+  });
+
+  const resetBtn = document.getElementById('resetBtn');
+  resetBtn.addEventListener('click', () => {
+    const ok = confirm('Ripristinare la lista di partenza? Tutte le modifiche andranno perse.');
+    if (!ok) return;
+    data = defaultData();
+    saveData();
+    render();
   });
 
   render();
